@@ -1,0 +1,10 @@
+__pycache__/
+bin/
+include/
+lib/
+lib64
+share/
+Labs/
+*.pdf
+*.csv
+!training_companydata.csv
