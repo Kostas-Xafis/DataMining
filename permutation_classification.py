@@ -9,7 +9,7 @@ from classifier_testing import test_classifier
 ignore_warnings()
 
 arg_permutations = {
-    "rm_empty": ['off', 'on'],
+    "rm_empty": [{'threshold': [0.1]}, 'off'],
     "smote": ['off', 'on'],
     "fill_nan": [{'method': ['mean', 'zero']}],
     "binning": ['off', {'threshold': [0.1], 'bins': [3]}],

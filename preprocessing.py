@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from imblearn.over_sampling import SMOTE
 
 bancrupt_data = None
 verbose = False
@@ -9,13 +8,14 @@ verbose = False
 training_data = pd.read_csv('./training_companydata.csv', na_values=['?'])
 
 # ======== Data Preprocessing ========
-def rm_empty(df, threshold=0.2):
+def rm_empty(df, threshold=0.1):
     # ===== Missing Values =====
     # Drop Columns with High Missing Values
     null_perc = df.isnull().mean()
     to_drop_missing = null_perc.where(null_perc > threshold).dropna().index
     print("Columns with high missing values: ", to_drop_missing.tolist()) if verbose else None
-    return df.drop(columns=to_drop_missing)
+    df = df.drop(columns=to_drop_missing)
+    return df
 
 def fill_nan(df, method='mean'):
     if method == 'mean':

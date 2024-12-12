@@ -55,7 +55,12 @@ def test_all_classifiers(df, target, iterations=1, test_size=0.2):
             print("Classifier: ", classifier_names[i], "failed to train")
             print(e)
 
-test_env = TestEnv()
+testEnv = TestEnv({
+    'pause': False,
+    'force_stop': False,
+    'status': 'Running',
+    'iterations': 0
+})
 def test_pause(testEnv):
     while testEnv['status'] != 'Finished':
         try:
@@ -78,16 +83,16 @@ def test_pause(testEnv):
 
 test_pause_thread = None
 def init_test_pause_thread():
-    global test_env
+    global testEnv
     global test_pause_thread
     if test_pause_thread is not None:
-        test_env.reset()
+        testEnv.reset()
     else:
-        test_pause_thread = threading.Thread(target=test_pause, args=(test_env,))
+        test_pause_thread = threading.Thread(target=test_pause, args=(testEnv,))
         test_pause_thread.start()
 
 def test_classifier(model, df, target, iterations=10, test_size=0.2, threads=1, verbose=True, smote=False, threshold=1):
-    global test_env
+    global testEnv
 
     init_test_pause_thread()
 
@@ -150,16 +155,16 @@ def test_classifier(model, df, target, iterations=10, test_size=0.2, threads=1, 
 
     # Start the progress tracker
     if verbose:
-        progress_thread = threading.Thread(target=track_progress, args=(iterations, test_env,))
+        progress_thread = threading.Thread(target=track_progress, args=(iterations, testEnv,))
         progress_thread.start()
         threads_list.append(progress_thread)
-        test_env['status'] = 'Running'
+        testEnv['status'] = 'Running'
 
 
     for i in range(threads):
         iters = (chunk_size + 1) if i < remaining else chunk_size
         f1_scores[i] = [np.nan] * iters
-        thread = threading.Thread(target=train_and_evaluate, args=(model, tts, f1_scores, i, iters, test_env,))
+        thread = threading.Thread(target=train_and_evaluate, args=(model, tts, f1_scores, i, iters, testEnv,))
         threads_list.append(thread)
         thread.start()
 
@@ -167,7 +172,7 @@ def test_classifier(model, df, target, iterations=10, test_size=0.2, threads=1, 
     for thread in threads_list:
         thread.join()
 
-    if test_env['force_stop']:
+    if testEnv['force_stop']:
         raise Exception('Threshold reached')
     
     return np.array(flattenUnevenArray(f1_scores, 1))

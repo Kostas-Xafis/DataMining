@@ -42,62 +42,51 @@ class Atomic:
         self.value = initial_value
         self._lock = threading.Lock()
 
-    def getLock(self):
-        return self._lock
+    def lock(self):
+        self._lock.acquire(blocking=True)
+        return self    
+    
+    def unlock(self):
+        self._lock.release()
+        return self
 
     def get(self):
-        with self._lock:
-            return self.value
+        return self.value
 
     def set(self, new_value):
-        with self._lock:
+        self.lock()
+        if callable(new_value):
+            self.value = new_value()
+        else:
             self.value = new_value
+        self.unlock()
 
 class TestEnv:
-    def __init__(self):
-        self.pause = Atomic(False)
-        self.force_stop = Atomic(False)
-        self.status = Atomic('Running')
-        self.iterations = Atomic(0)
+    env = {}
+    initial_values = None
+    def __init__(self, env_dict=None):
+        if env_dict is None:
+            raise ValueError("env_dict must be a dictionary")
+        
+        for key, value in env_dict.items():
+            self.env[key] = Atomic(value)
+        self.initial_values = env_dict
 
     def reset(self):
-        self.pause.set(False)
-        self.force_stop.set(False)
-        self.status.set('Running')
-        self.iterations.set(0)
-
-    def getAll(self):
-        return {
-            'pause': self.pause,
-            'force_stop': self.force_stop,
-            'status': self.status,
-            'iterations': self.iterations
-        }
+        for key, value in self.initial_values.items():
+            self.env[key].set(value)
+            
+    def get(self):
+        return self.env
     
     def __getitem__(self, key):
-        match key:
-            case 'pause':
-                return self.pause.get()
-            case 'force_stop':
-                return self.force_stop.get()
-            case 'status':
-                return self.status.get()
-            case 'iterations':
-                return self.iterations.get()   
+        return self.env[key].get()
 
     def __setitem__(self, key, value):
-        match key:
-            case 'pause':
-                self.pause.set(value)
-            case 'force_stop':
-                self.force_stop.set(value)
-            case 'status':
-                self.status.set(value)
-            case 'iterations':
-                self.iterations.set(value)
+        self.env[key].set(value)
 
 __atomic__ = Atomic()
-__test__ = TestEnv()
+__test__ = TestEnv({})
 
 __all__ = ['ignore_warnings', 'flattenUnevenArray', '__atomic__', 'formatETATime', '__test__'] 
 
