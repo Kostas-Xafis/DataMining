@@ -7,4 +7,7 @@ share/
 Labs/
 *.pdf
 *.csv
+*.txt
+*.ipynb
+*.log
 !training_companydata.csv
