@@ -1,21 +1,38 @@
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.feature_selection import SelectKBest, f_classif
+from imblearn.over_sampling import SMOTE
 
-bancrupt_data = None
+bankrupt_data = None
 verbose = False
 
-training_data = pd.read_csv('./training_companydata.csv', na_values=['?'])
+training_data = pd.read_csv('./data/training_companydata.csv', na_values=['?'])
+
 
 # ======== Data Preprocessing ========
+def rm_dups(df):
+    # ===== Duplicate Values =====
+    # Drop duplicate rows
+    return df.drop_duplicates()
+
+def rm_high_nan(df, threshold=0.1):
+    # ===== Missing Values =====
+    # Drop Rows with High Missing Values
+    null_perc = df.isnull().mean(axis=1)
+    to_drop_missing = null_perc.where(null_perc > threshold).dropna().index
+    print("Rows with high missing values: ", to_drop_missing.tolist()) if verbose else None
+    return df.drop(index=to_drop_missing)
+
 def rm_empty(df, threshold=0.1):
     # ===== Missing Values =====
     # Drop Columns with High Missing Values
     null_perc = df.isnull().mean()
     to_drop_missing = null_perc.where(null_perc > threshold).dropna().index
     print("Columns with high missing values: ", to_drop_missing.tolist()) if verbose else None
-    df = df.drop(columns=to_drop_missing)
-    return df
+    return df.drop(columns=to_drop_missing)
 
 def fill_nan(df, method='mean'):
     if method == 'mean':
@@ -27,6 +44,7 @@ def fill_nan(df, method='mean'):
     elif method == 'zero':
         # Fill missing values with 0
         df.fillna(0, inplace=True)
+
     return df
 
 def binning(df, threshold=0.1, bins=3):
@@ -85,16 +103,6 @@ def correlation(df, threshold=0.999, method='pearson'):
     print("Columns found in multiple pairs: ", columns_to_drop) if verbose else None
     return df.drop(columns=columns_to_drop) 
 
-def outliers(df, threshold=2.5):
-    # ===== Outliers =====
-    # Remove outliers using Z-score
-    z_scores = np.abs((df - df.mean()) / df.std())
-    outliers = z_scores > threshold
-    print("Number of outliers: ", outliers.sum().sum()) if verbose else None
-    global bancrupt_data
-    bancrupt_data = bancrupt_data[~outliers.any(axis=1)]
-    return df[~outliers.any(axis=1)]
-
 def deskew(df):
     # ===== Deskewing =====
     # Skewness of the data
@@ -112,7 +120,8 @@ def deskew(df):
         max_val = df[feature].max()
         df[feature] = (df[feature] - min_val) / (max_val - min_val + e)
         # Implement this formula: x = log(x) - log(1 - x)
-        df[feature] = np.log(df[feature] + e) - np.log(1 - df[feature] + e)
+        # df[feature] = np.log(df[feature] + e) - np.log((1-e) - df[feature])
+
         print(f"Deskewed feature: {feature}", " with new skewness: ", df[feature].skew()) if verbose else None
     return df
 
@@ -124,25 +133,62 @@ def normalize(df, method='z-score'):
     elif method == 'z-score':
         # Z-score Data normalization
         df = (df-df.mean()) / df.std()
+    elif method == 'robust':
+        # Robust Data normalization
+        df = (df-df.median()) / (df.quantile(0.75) - df.quantile(0.25))
+    elif method == 'scaler':
+        # Scaler Data normalization
+        scaler = StandardScaler()
+        df = scaler.fit_transform(df)
     return df
 
+def data_manipulation(df, method):
+    global bankrupt_data
+    if method == 'Poly':
+        # ===== Polynomial Expansion =====
+        poly = PolynomialFeatures(degree=2)
+        poly_features = poly.fit_transform(df)
+        df_poly = pd.DataFrame(poly_features, columns=poly.get_feature_names_out(df.columns), index=df.index).drop(columns=['1'])
+        return df_poly
+    elif method == 'BestK':
+        # ===== Feature Selection =====
+        kbest = SelectKBest(score_func=f_classif, k=10)
+        kbest.fit(df, bankrupt_data)
+        kbest_cols = df.columns[kbest.get_support(indices=True)]
+        print("Best K features: ", kbest_cols)
+        return df[kbest_cols]
+    elif method == 'PCA':
+        # ===== PCA =====
+        pca = PCA(n_components=5)
+        pca_features = pca.fit_transform(df)
+        df_pca = pd.DataFrame(pca_features, columns=[f'PC{i+1}' for i in range(5)], index=df.index)
+        return pd.concat([df, data_manipulation(df_pca, 'Poly')], axis=1)
+    else:
+        return df
 
-def prepare_data(args=None, ret=False):
-    global bancrupt_data
-    df = training_data.copy()
-    bancrupt_data = df['X65']
-    df = df.drop('X65', axis=1)
+default_args = {'rm_empty': {'threshold': 0.1}, 'smote': 'off', 'fill_nan': {'method': 'zero'}, 'binning': 'off', 'high_zero': 'off', 'correlation': 'off', 'outliers': {'threshold': 3.0}, 'deskew': 'on', 'normalize': {'method': 'robust'}}
+# default_args = {"rm_empty": {'threshold': 0.2},"binning": 'off',"fill_nan": {'method': 'zero'},"high_zero": 'off',"correlation": {'threshold': 0.999, 'method': 'kendall'},"outliers": {'threshold': 2.5},"deskew": 'off',"normalize": {'method': 'z-score'}}
+def prepare_data(df=None, args=None, ret=False):
+    if df is None:
+        global bankrupt_data
+        df = training_data.copy()
+        df = rm_high_nan(rm_dups(df), 0.1)
+        bankrupt_data = df['X65']
+        df = df.drop('X65', axis=1)
+    else:
+        df = rm_high_nan(rm_dups(df), 0.1)
 
-    args = {
-        "rm_empty": {'threshold': 0.2},
-        "binning": 'off',
-        "fill_nan": {'method': 'zero'},
-        "high_zero": 'off',
-        "correlation": {'threshold': 0.999, 'method': 'kendall'},
-        "outliers": {'threshold': 2.5},
-        "deskew": 'off',
-        "normalize": {'method': 'z-score'}
-    } if args is None else args
+    if args is None:
+        args = {
+            "rm_empty": {'threshold': 0.2},
+            "binning": 'off',
+            "fill_nan": {'method': 'zero'},
+            "high_zero": 'off',
+            "correlation": {'threshold': 0.999, 'method': 'kendall'},
+            "outliers": {'threshold': 2.5},
+            "deskew": 'off',
+            "normalize": {'method': 'z-score'}
+        }
 
     
     for key, value in args.items():
@@ -158,19 +204,69 @@ def prepare_data(args=None, ret=False):
             df = high_zero(df, value['threshold'])
         elif key == 'correlation':
             df = correlation(df, value['threshold'])
-        elif key == 'outliers':
-            df = outliers(df, value['threshold'])
         elif key == 'deskew':
             df = deskew(df)
         elif key == 'normalize':
             df = normalize(df, value['method'])
+        elif key == 'data_manipulation':
+            df = data_manipulation(df, value['method'])
 
-    df = pd.concat([df, bancrupt_data], axis=1)
+    df = pd.concat([df, bankrupt_data], axis=1)
     if ret:
         return df
-    df.to_csv('./training_companydata_prepped.csv', index=False, float_format='%.5f')
+    df.to_csv('./data/training_companydata_prepped.csv', index=False, float_format='%.5f')
 
-__all__ = ['prepare_data']
+def outliers(df: pd.DataFrame, target, threshold=2.5):
+    # ===== Outliers =====
+    # Remove outliers using Z-score
+    z_scores = np.abs((df - df.mean()) / df.std())
+    outliers = z_scores > threshold
+    # print("Number of outliers: ", outliers.sum().sum()) if verbose else None
+    target = target[~outliers.any(axis=1)]
+    df = df[~outliers.any(axis=1)]
+
+    # Put the outliers to the mean of the column
+    # df.mask(outliers, df.mean(), inplace=True, axis=1)
+    return df, target
+
+def smote(df, target):
+    # ===== SMOTE =====
+    # Synthetic Minority
+    return SMOTE(sampling_strategy='minority', random_state=39).fit_resample(df, target)
+
+def prepare_training_data(x, y, args=None):
+    if args is None:
+        return x, y
+    for key, value in args.items():
+        if value == 'off':
+            continue
+        match key:
+            case 'outliers':
+                x, y = outliers(x, y, value['threshold'])
+            case 'smote':
+                x, y = smote(x, y)
+    return x, y
+
+def prepare_unlabeled_data(labels, args, ret=False):
+    df = pd.read_csv('./data/test_unlabeled.csv', na_values=['?', ''], names=[f'X{i}' for i in range(1, 65)])
+    df = df.drop(columns=[col for col in df.columns if col not in labels])
+
+    # Allow only value changing preprocessing
+    for key, value in args.items():
+        if value == 'off':
+            continue
+        if key == 'fill_nan':
+            df = fill_nan(df, value['method'])
+        elif key == 'normalize':
+            df = normalize(df, value['method'])
+        elif key == 'deskew':
+            df = deskew(df)
+
+    if ret:
+        return df
+    df.to_csv('./data/unlabeled_companydata_prepped.csv', index=False, float_format='%.5f')
+
+__all__ = ['prepare_data', 'prepare_training_data']
 
 if __name__ == '__main__':
     verbose = True

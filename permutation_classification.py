@@ -1,55 +1,16 @@
 from time import time
 from utils import ignore_warnings, formatETATime
-from sklearn.ensemble import HistGradientBoostingClassifier
-from itertools import product
+from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
+from preprocessing_permutations import all_combinations
 from preprocessing import prepare_data
 from classifier_testing import test_classifier
 
-
 ignore_warnings()
-
-arg_permutations = {
-    "rm_empty": [{'threshold': [0.1]}, 'off'],
-    "smote": ['off', 'on'],
-    "fill_nan": [{'method': ['mean', 'zero']}],
-    "binning": ['off', {'threshold': [0.1], 'bins': [3]}],
-    "high_zero": ['off', {'threshold': [0.1]}],
-    "correlation": ['off', {'threshold': [0.999, 0.99], 'method': ['pearson']}],
-    "outliers": ['off', {'threshold': [2.5, 3.0, 3.5]}],
-    "deskew": ['off', 'on'],
-    "normalize": ['off', {'method': ['z-score', 'minmax']}],
-}
-
-
-# Helper function to expand the inner lists
-def expand_options(options):
-    if isinstance(options, list):
-        expanded = []
-        for opt in options:
-            if isinstance(opt, dict):
-                # Convert lists in the dictionary to individual combinations
-                keys, values = zip(*[
-                    (k, v if isinstance(v, list) else [v])
-                    for k, v in opt.items()
-                ])
-                for combination in product(*values):
-                    expanded.append(dict(zip(keys, combination)))
-            else:
-                expanded.append(opt)
-        return expanded
-    return options
-
-# Prepare the expanded arguments
-expanded_args = {key: expand_options(value) for key, value in arg_permutations.items()}
-
-# Generate all combinations
-keys, values = zip(*expanded_args.items())
-all_combinations = [dict(zip(keys, combination)) for combination in product(*values)]
 
 print("Number of combinations:", len(all_combinations))
 input("Press Enter to continue...\n")
 
-def test_classifiers(model, combinations, iterations=1, threads=1, verbose=False):
+def test_classifiers(model, combinations, iterations=1, threads=1, verbose=False, apply_threshold=False):
     combinationRanking = []
     lapsed_time = 0
     comb_len = len(combinations)
@@ -60,12 +21,11 @@ def test_classifiers(model, combinations, iterations=1, threads=1, verbose=False
             print("ETA: ", formatETATime((comb_len - i) * lapsed_time / (i + 1)), '\n')
         print("Combination: ", i + 1, "/", comb_len, ':', combinations[i])
         comb = combinations[i]
-        smote = comb['smote'] == 'on'
         try:
-            df = prepare_data(comb, ret=True)
-            bancrupt_column = df['X65']
+            df = prepare_data(args=comb, ret=True)
+            bankrupt_column = df['X65']
             df = df.drop('X65', axis=1)
-            results = test_classifier(model, df, bancrupt_column, iterations=iterations, threads=threads, verbose=verbose, smote=smote, threshold=threshold)
+            results = test_classifier(model, df, bankrupt_column, iterations=iterations, threads=threads, verbose=verbose, threshold=threshold, ptd_args=comb)
             
             mean = results.mean(axis=0)
             std = results.std(axis=0)
@@ -73,10 +33,10 @@ def test_classifiers(model, combinations, iterations=1, threads=1, verbose=False
             print('Mean F1-score: ', mean, '±', std, '\n')
             
             lapsed_time += time() - t1
-
-            cur_threshold = (mean[1] - std[1]) * 0.9
-            if cur_threshold > threshold:
-                threshold = cur_threshold
+            if apply_threshold:
+                cur_threshold = (mean[1] - std[1]) * 0.75
+                if cur_threshold > threshold:
+                    threshold = cur_threshold
         except Exception as e:
             if 'Test stop' == str(e):
                 print('Test was forcefully stopped')
@@ -87,7 +47,7 @@ def test_classifiers(model, combinations, iterations=1, threads=1, verbose=False
                 print('Combination reached threshold')
             else:
                 print("Failed to test combination: ", comb)
-                print(e)
+            print(e)
     combinationRanking.sort(key=lambda x: x[1][1], reverse=True)
 
     n = min(10, len(combinationRanking))
@@ -107,6 +67,16 @@ def test_classifiers(model, combinations, iterations=1, threads=1, verbose=False
     f.close()
 
 
-model = lambda: HistGradientBoostingClassifier(class_weight='balanced', max_depth=10, max_iter=100, early_stopping=False, random_state=0)
+model = lambda: HistGradientBoostingClassifier(class_weight='balanced', max_iter=200, max_depth=20, early_stopping=False, learning_rate=0.2, random_state=420)
+# model = lambda: RandomForestClassifier(
+#     max_depth=20, 
+#     n_estimators=100,
+#     min_samples_split=5, 
+#     min_samples_leaf=2, 
+#     max_features='sqrt', 
+#     random_state=0,   
+#     class_weight='balanced'
+# )
 
-test_classifiers(model, all_combinations, iterations=30, threads=8, verbose=True)
+
+test_classifiers(model, all_combinations, iterations=1, threads=1, verbose=True, apply_threshold=False)

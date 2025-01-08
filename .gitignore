@@ -5,9 +5,9 @@ lib/
 lib64
 share/
 Labs/
+data/
 *.pdf
 *.csv
 *.txt
 *.ipynb
 *.log
-!training_companydata.csv
