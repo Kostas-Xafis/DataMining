@@ -1,7 +1,7 @@
 import threading
 import time
 import numpy as np
-from utils import flattenUnevenArray, TestEnv
+from utils.other import flattenUnevenArray, TestEnv
 from preprocessing import prepare_training_data
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report

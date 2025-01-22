@@ -5,11 +5,12 @@ from sklearn.decomposition import PCA
 from sklearn.feature_selection import SelectKBest, f_classif
 from imblearn.over_sampling import SMOTE
 
+from other import get_labeled_test
+
 bankrupt_data = None
 verbose = False
 
 training_data = pd.read_csv('./data/training_companydata.csv', na_values=['?'])
-
 
 # ======== Data Preprocessing ========
 def rm_dups(df):
@@ -167,7 +168,9 @@ def data_manipulation(df, method):
 
 default_args = {'rm_empty': {'threshold': 0.1}, 'smote': 'off', 'fill_nan': {'method': 'zero'}, 'binning': 'off', 'high_zero': 'off', 'correlation': 'off', 'outliers': {'threshold': 3.0}, 'deskew': 'on', 'normalize': {'method': 'robust'}}
 # default_args = {"rm_empty": {'threshold': 0.2},"binning": 'off',"fill_nan": {'method': 'zero'},"high_zero": 'off',"correlation": {'threshold': 0.999, 'method': 'kendall'},"outliers": {'threshold': 2.5},"deskew": 'off',"normalize": {'method': 'z-score'}}
-def prepare_data(df: pd.DataFrame =None, args=None, ret=False):
+def get_training_data(df: pd.DataFrame =None, args=None, ret=False):
+    if args is None:
+        raise ValueError("Args cannot be None")
     if df is None:
         global bankrupt_data
         df = training_data.copy()
@@ -176,19 +179,6 @@ def prepare_data(df: pd.DataFrame =None, args=None, ret=False):
         df = df.drop('X65', axis=1)
     else:
         df = rm_high_nan(rm_dups(df), 0.1)
-
-    if args is None:
-        args = {
-            "rm_empty": {'threshold': 0.2},
-            "binning": 'off',
-            "fill_nan": {'method': 'zero'},
-            "high_zero": 'off',
-            "correlation": {'threshold': 0.999, 'method': 'kendall'},
-            "outliers": {'threshold': 2.5},
-            "deskew": 'off',
-            "normalize": {'method': 'z-score'}
-        }
-
     
     for key, value in args.items():
         if value == 'off':
@@ -198,9 +188,11 @@ def prepare_data(df: pd.DataFrame =None, args=None, ret=False):
         elif key == 'fill_nan':
             df = fill_nan(df, value['method'])
         elif key == 'binning':
-            df = binning(df, value['threshold'], value['bins'])
+            """ Bining got.... binned! """
+            # df = binning(df, value['threshold'], value['bins'])
         elif key == 'high_zero':
-            df = high_zero(df, value['threshold'])
+            """ High_ly_ Ineffective"""
+            # df = high_zero(df, value['threshold'])
         elif key == 'correlation':
             df = correlation(df, value['threshold'])
         elif key == 'deskew':
@@ -246,7 +238,7 @@ def prepare_training_data(x, y, args=None):
                 x, y = smote(x, y)
     return x, y
 
-def prepare_unlabeled_data(labels, args, ret=False):
+def get_testing_data(labels, args, ret=False):
     df = pd.read_csv('./data/test_unlabeled.csv', na_values=['?', ''], names=[f'X{i}' for i in range(1, 65)])
     df = df.drop(columns=[col for col in df.columns if col not in labels])
 
@@ -263,10 +255,10 @@ def prepare_unlabeled_data(labels, args, ret=False):
 
     if ret:
         return df
-    df.to_csv('./data/unlabeled_companydata_prepped.csv', index=False, float_format='%.5f')
+    df.to_csv('./data/unlabeled_data_prepped.csv', index=False, float_format='%.5f')
 
-__all__ = ['prepare_data', 'prepare_training_data']
+__all__ = ['get_training_data', 'prepare_training_data']
 
 if __name__ == '__main__':
     verbose = True
-    prepare_data()
+    get_training_data()

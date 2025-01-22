@@ -1,9 +1,9 @@
 from time import time
-from utils import ignore_warnings, formatETATime
-from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
-from preprocessing_permutations import all_combinations
-from preprocessing import prepare_data
-from classifier_testing import test_classifier
+from utils.other import ignore_warnings, formatETATime
+from sklearn.ensemble import HistGradientBoostingClassifier
+from optims.preprocessing_permutations import all_combinations
+from preprocessing import get_training_data
+from optims.classifier_testing import test_classifier
 
 ignore_warnings()
 
@@ -22,7 +22,7 @@ def test_classifiers(model, combinations, iterations=1, threads=1, verbose=False
         print("Combination: ", i + 1, "/", comb_len, ':', combinations[i])
         comb = combinations[i]
         try:
-            df = prepare_data(args=comb, ret=True)
+            df = get_training_data(args=comb, ret=True)
             bankrupt_column = df['X65']
             df = df.drop('X65', axis=1)
             results = test_classifier(model, df, bankrupt_column, iterations=iterations, threads=threads, verbose=verbose, threshold=threshold, ptd_args=comb)
@@ -67,7 +67,7 @@ def test_classifiers(model, combinations, iterations=1, threads=1, verbose=False
     f.close()
 
 
-model = lambda: HistGradientBoostingClassifier(class_weight='balanced', max_iter=200, max_depth=20, early_stopping=False, learning_rate=0.2, random_state=420)
+model = lambda: HistGradientBoostingClassifier(class_weight='balanced', max_iter=200, max_depth=20, early_stopping=False, learning_rate=0.2, l2_regularization=0.2, random_state=420)
 # model = lambda: RandomForestClassifier(
 #     max_depth=20, 
 #     n_estimators=100,

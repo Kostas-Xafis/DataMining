@@ -3,14 +3,14 @@ from random import sample
 
 arg_permutations = {
     "rm_empty": [{'threshold': [0.1]}, 'off'],
-    "smote": ['off', 'on'],
+    "smote": ['on'],
     "fill_nan": [{'method': ['mean', 'median', 'zero']}],
     # Through testing, those 2 methods were found to be deffective
     # "binning": ['off', {'threshold': [0.1], 'bins': [3]}],
     # "high_zero": ['off', {'threshold': [0.1]}],
     "correlation": ['off', {'threshold': [0.999, 0.99], 'method': ['pearson']}],
     "outliers": ['off', {'threshold': [2.5, 3.0, 3.5]}],
-    "deskew": ['off', 'on'],
+    # "deskew": ['off', 'on'],
     "normalize": ['off', {'method': ['z-score', 'minmax', 'robust']}],
     # "data_manipulation": ['off', {'method': ['BestK', 'PCA', 'Poly']}]
 }

@@ -5,22 +5,16 @@ from sklearn.inspection import permutation_importance
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import HistGradientBoostingClassifier
-from classification import getData
-
+from classification import getTrainingData
+from optims.best_classifier import best_model
 
 def evaluate_features_and_regression():
+
     # Load the training data
-    df, target = getData()
+    df, target = getTrainingData()
 
     # Initialize the model for feature evaluation
-    classifier = HistGradientBoostingClassifier(
-        class_weight='balanced',
-        max_iter=200,
-        max_depth=20,
-        early_stopping=False,
-        learning_rate=0.2,
-        l2_regularization=0.2
-    )
+    classifier = best_model
 
     # Split the data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(
