@@ -1,24 +1,25 @@
 import pandas as pd
+import numpy as np
 from parse_args import parse_args
 from preprocessing import prepare_data, prepare_unlabeled_data, prepare_training_data
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.model_selection import RepeatedStratifiedKFold, train_test_split, GridSearchCV, KFold
+from sklearn.metrics import classification_report, confusion_matrix, f1_score, accuracy_score
 from sklearn.ensemble import RandomForestClassifier, HistGradientBoostingClassifier
 from classifier_testing import test_classifier
 from sklearn.inspection import permutation_importance
 
+
 data_prep_args = {
-    'rm_empty': {'threshold': 0.1},
+    'rm_empty': 'off',
     'smote': 'on',
     'fill_nan': {'method': 'mean'},
     'correlation': {'threshold': 0.999, 'method': 'kendall'},
-    'outliers': {'threshold': 2.75 },
-    'deskew': 'off',
+    'outliers': {'threshold': 3 },
     'normalize': {'method': 'robust'},
 }
 
 # Best with the unlabeled data 
-data_prep_args = {'rm_empty': 'off', 'smote': 'on', 'fill_nan': {'method': 'median'}, 'correlation': 'off', 'outliers': {'threshold': 3}, 'deskew': 'off', 'normalize': {'method': 'robust'}}
+# data_prep_args = {'rm_empty': 'off', 'smote': 'on', 'fill_nan': {'method': 'median'}, 'correlation': 'off', 'outliers': {'threshold': 3}, 'normalize': {'method': 'robust'}}
 
 def getData():
     global data_prep_args
@@ -31,7 +32,7 @@ def getunlabeledData(labels):
     global data_prep_args
     return prepare_unlabeled_data(labels, args=data_prep_args, ret=True)
 
-histLambda = lambda: HistGradientBoostingClassifier(class_weight='balanced', max_iter=150, max_depth=20, early_stopping=False, learning_rate=0.2, l2_regularization=0.2)
+histLambda = lambda: HistGradientBoostingClassifier(class_weight='balanced', max_iter=200, max_depth=20, early_stopping=False, learning_rate=0.2, l2_regularization=0.2)
 rfLambda = lambda: RandomForestClassifier(max_depth=20, n_estimators=100, min_samples_split=5, min_samples_leaf=2, max_features='sqrt', random_state=0, class_weight='balanced')
 
 def classifier_test(iterations=10, threads=1, verbose=True, ptd_args=None):
@@ -39,8 +40,41 @@ def classifier_test(iterations=10, threads=1, verbose=True, ptd_args=None):
 
     classifierLamda = lambda: HistGradientBoostingClassifier(class_weight='balanced', max_iter=200, max_depth=20, early_stopping=False, learning_rate=0.2, l2_regularization=0.2)
     # classifierLamda = lambda: RandomForestClassifier(max_depth=20, n_estimators=100, min_samples_split=2, max_features='log2', random_state=0, class_weight='balanced')
+
     results = test_classifier(classifierLamda, df, target, iterations=iterations, threads=threads, verbose=verbose, ptd_args=ptd_args)
     print("Model: ", classifierLamda().__class__.__name__, "\n\tMean F1-Score: ", results.mean(axis=0), "\n\tStandard Deviation: ", results.std(axis=0)) if verbose else None
+
+def evaluate_model(model, fold_size=5, repeats=10):
+    X, y = getData()
+    X, y = X.values, y.values
+    rskf = RepeatedStratifiedKFold(n_splits=fold_size, n_repeats=repeats, random_state=42)
+    accuracies = []
+    f1_scores = []
+    
+    
+
+    for train_index, test_index in rskf.split(X, y):
+        X_train, y_train, = X[train_index], y[train_index]
+        X_test, y_test = X[test_index], y[test_index]
+
+        X_train, y_train = prepare_training_data(X_train, y_train, data_prep_args)
+
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+
+        acc = accuracy_score(y_test, y_pred)
+        f1 = f1_score(y_test, y_pred, average='weighted')
+        print("Accuracy: ", acc)
+        print("F1: ", f1)
+        
+        accuracies.append(acc)
+        f1_scores.append(f1)
+
+    print(f"Mean Accuracy: {float(np.mean(accuracies)):.4f}")
+    print(f"Mean F1 Score: {float(np.mean(f1_scores)):.4f}")
+    print(f"Accuracy Scores: {list(map(float, accuracies))}")
+    print(f"F1 Scores: {list(map(float, f1_scores))}")
+
 
 def simple_test():
     df, target = getData()
@@ -59,6 +93,19 @@ def simple_test():
     print('\n')
     print(classification_report(y_test, y_pred))
 
+def predictions_test():
+    X_train, y_train = getData()
+    udata = getunlabeledData(labels=X_train.columns)
+    
+    y_test = udata['X65']
+
+    predictions = pd.read_csv('./predictions.csv', header=None)
+
+    print(confusion_matrix(y_test, predictions))
+    print('\n')
+    print(classification_report(y_test, predictions))
+    
+    
 def grid_search():
     df, target = getData()
 
@@ -141,10 +188,11 @@ def test_unlabeled_data():
 
     # Save the predictions
     predictions = model.predict(X_test)
+    print("Predictions: ", sum(predictions))
     results_df = pd.Series(predictions)
     results_df.to_csv('./data/unlabeled_predictions.csv', index=False, header=False)
     print("Unlabeled predictions saved to ./data/unlabeled_predictions.csv")
-
+    
     # Save the top 50 most likely bankrupt companies
     probabilities = model.predict_proba(X_test)[:, 1]
 
@@ -159,6 +207,7 @@ args = parse_args({
     'simple': [bool, False],
     'grid_search': [bool, False],
     'classifier': [bool, False],
+    'predictions': [bool, False],
     'top10': [bool, False],
     'unlabeled': [bool, False]
 })
@@ -169,8 +218,11 @@ if __name__ == '__main__':
         simple_test()
     elif args['grid_search']:
         grid_search()
+    elif args['predictions']:
+        predictions_test()
     elif args['classifier']:
-        classifier_test(iterations=100, threads=12, verbose=True, ptd_args=data_prep_args)
+        # classifier_test(iterations=100, threads=12, verbose=True, ptd_args=data_prep_args)
+        evaluate_model(histLambda(), fold_size=10, repeats=10)
     elif args['unlabeled']:
         test_unlabeled_data()
     elif args['top10']:

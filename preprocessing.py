@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-# import matplotlib.pyplot as plt
 from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.feature_selection import SelectKBest, f_classif
@@ -101,7 +100,7 @@ def correlation(df, threshold=0.999, method='pearson'):
     # Find columns that are part of multiple pairs
     columns_to_drop = [col for col, count in pair_counts.items() if count == 1]
     print("Columns found in multiple pairs: ", columns_to_drop) if verbose else None
-    return df.drop(columns=columns_to_drop) 
+    return df.drop(columns=columns_to_drop)
 
 def deskew(df):
     # ===== Deskewing =====
@@ -168,7 +167,7 @@ def data_manipulation(df, method):
 
 default_args = {'rm_empty': {'threshold': 0.1}, 'smote': 'off', 'fill_nan': {'method': 'zero'}, 'binning': 'off', 'high_zero': 'off', 'correlation': 'off', 'outliers': {'threshold': 3.0}, 'deskew': 'on', 'normalize': {'method': 'robust'}}
 # default_args = {"rm_empty": {'threshold': 0.2},"binning": 'off',"fill_nan": {'method': 'zero'},"high_zero": 'off',"correlation": {'threshold': 0.999, 'method': 'kendall'},"outliers": {'threshold': 2.5},"deskew": 'off',"normalize": {'method': 'z-score'}}
-def prepare_data(df=None, args=None, ret=False):
+def prepare_data(df: pd.DataFrame =None, args=None, ret=False):
     if df is None:
         global bankrupt_data
         df = training_data.copy()
