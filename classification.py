@@ -10,6 +10,7 @@ from optims.classifier_testing import test_classifier
 from sklearn.inspection import permutation_importance
 
 
+# Testing preps
 data_prep_args = {
     'rm_empty': 'off',
     'smote': 'on',
@@ -19,8 +20,15 @@ data_prep_args = {
     'normalize': {'method': 'robust'},
 }
 
-# Best with the unlabeled data 
-data_prep_args = {'rm_empty': 'off', 'smote': 'on', 'fill_nan': {'method': 'median'}, 'correlation': 'off', 'outliers': {'threshold': 3}, 'normalize': {'method': 'robust'}}
+# *Best* with the unlabeled data 
+data_prep_args = {
+    'rm_empty': 'off',
+    'smote': 'on',
+    'fill_nan': {'method': 'median'},
+    'correlation': 'off',
+    'outliers': {'threshold': 3},
+    'normalize': {'method': 'robust'}
+}
 
 # rfLambda = lambda: RandomForestClassifier(max_depth=20, n_estimators=100, min_samples_split=5, min_samples_leaf=2, max_features='sqrt', random_state=0, class_weight='balanced')
 

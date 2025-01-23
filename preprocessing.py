@@ -5,8 +5,6 @@ from sklearn.decomposition import PCA
 from sklearn.feature_selection import SelectKBest, f_classif
 from imblearn.over_sampling import SMOTE
 
-from other import get_labeled_test
-
 bankrupt_data = None
 verbose = False
 

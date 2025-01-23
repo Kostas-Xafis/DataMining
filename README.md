@@ -37,6 +37,18 @@ To use the project, follow these steps:
     python classification.py --unlabeled
     ```
 
+3. Extract the top 10 features and compare with new evaluation:
+
+    ```bash
+    python classification.py --top10
+    ```
+
+4. Extract the top 10 features and perform regression analysis:
+
+    ```bash
+    python regression.py
+    ```
+
 ## CLI Arguments
 
 The `classification.py` script accepts the following arguments:

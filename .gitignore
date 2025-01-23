@@ -5,9 +5,9 @@ lib/
 lib64
 share/
 Labs/
-data/
+*.zip
 *.pdf
-*.csv
 *.txt
 *.ipynb
 *.log
+
