@@ -3,7 +3,7 @@ import numpy as np
 from optims.best_classifier import best_model
 from utils.parse_args import parse_args
 from preprocessing import get_training_data, get_testing_data, prepare_training_data
-from sklearn.model_selection import RepeatedStratifiedKFold, train_test_split, GridSearchCV
+from sklearn.model_selection import KFold, RepeatedKFold, train_test_split, GridSearchCV
 from sklearn.metrics import classification_report, confusion_matrix, f1_score, accuracy_score
 from sklearn.ensemble import HistGradientBoostingClassifier
 from optims.classifier_testing import test_classifier
@@ -57,11 +57,11 @@ def classifier_test(iterations=10, threads=1, verbose=True, ptd_args=None):
 def evaluate_model(model, fold_size=3, repeats=10):
     X, y = getTrainingData()
     X, y = X.values, y.values
-    rskf = RepeatedStratifiedKFold(n_splits=fold_size, n_repeats=repeats, random_state=42)
+    kf = RepeatedKFold(n_splits=fold_size, n_repeats=repeats, random_state=42)
     accuracies = []
     f1_scores = []    
 
-    for train_index, test_index in rskf.split(X, y):
+    for train_index, test_index in kf.split(X, y):
         X_train, y_train, = X[train_index], y[train_index]
         X_test, y_test = X[test_index], y[test_index]
 

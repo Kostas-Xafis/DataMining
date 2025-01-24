@@ -11,15 +11,31 @@
 
 ## Summary
 
-This project focuses on data mining and classification using various machine learning techniques. It includes data preprocessing, feature selection, model training, and evaluation.
+This project focuses on developing methods for preprocessing and model selection in data mining.
 
 ## Installation
 
-To install the necessary dependencies, run:
+To install the necessary dependencies, follow these steps:
 
-```bash
-pip install -r requirements.txt
-```
+1. Clone the repository:
+
+    ```bash
+    git clone https://github.com/Kostas-Xafis/DataMining
+    cd DataMining
+    ```
+
+2. Create a virtual environment and activate it (if needed):
+
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate
+    ```
+
+3. Install the required packages:
+
+    ```bash
+    pip install -r requirements.txt
+    ```
 
 ## Usage
 
