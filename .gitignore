@@ -7,7 +7,6 @@ share/
 Labs/
 *.zip
 *.pdf
-*.txt
 *.ipynb
 *.log
 
